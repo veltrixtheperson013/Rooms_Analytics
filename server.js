@@ -29,7 +29,10 @@ const EMPTY_DATA = {
   SessionsByDayUtc: {},
   DeathCauses: {},
   SectionsCrossed: {},
-  MiniSectionsCrossed: {}
+  MiniSectionsCrossed: {},
+  Environments: {},
+  AccountAgeGroups: {},
+  Categories: {}
 };
 
 const DEMO_DATA = {
@@ -62,7 +65,10 @@ const DEMO_DATA = {
   SessionsByDayUtc: { "2026-05-24": 42 },
   DeathCauses: { "A-60": 21, "A-200": 14, "B-30": 18, Unknown: 14 },
   SectionsCrossed: { A: 42, B: 29 },
-  MiniSectionsCrossed: { Office: 33, Basic: 41, Catwalk: 18, Kitchen: 12, "B-Basic": 14 }
+  MiniSectionsCrossed: { Office: 33, Basic: 41, Catwalk: 18, Kitchen: 12, "B-Basic": 14 },
+  Environments: { Game: 38, InStudio: 4 },
+  AccountAgeGroups: { "0-6 days": 3, "7-29 days": 8, "30-179 days": 12, "180-364 days": 9, "1-2 years": 6, "3+ years": 4 },
+  Categories: {}
 };
 
 function ensureDataFile() {
@@ -123,6 +129,16 @@ function mapCounts(source, keepRawKeys = false) {
   return out;
 }
 
+function normalizeCategoryMap(source) {
+  const out = {};
+  if (!source || typeof source !== "object" || Array.isArray(source)) return out;
+  for (const [name, value] of Object.entries(source)) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    out[safeKey(name)] = normalizeAggregate(value);
+  }
+  return out;
+}
+
 function normalizeAggregate(input) {
   const totalSessions = Math.max(0, asNumber(input.TotalSessions));
   const totalPlaytime = Math.max(0, asNumber(input.TotalPlaytimeSeconds));
@@ -148,11 +164,14 @@ function normalizeAggregate(input) {
     SessionsByDayUtc: mapCounts(input.SessionsByDayUtc, true),
     DeathCauses: mapCounts(input.DeathCauses),
     SectionsCrossed: mapCounts(input.SectionsCrossed),
-    MiniSectionsCrossed: mapCounts(input.MiniSectionsCrossed)
+    MiniSectionsCrossed: mapCounts(input.MiniSectionsCrossed),
+    Environments: mapCounts(input.Environments || input.EnvironmentTotals),
+    AccountAgeGroups: mapCounts(input.AccountAgeGroups || input.AgeGroups, true),
+    Categories: normalizeCategoryMap(input.Categories)
   };
 }
 
-function mergeAnalytics(current, incoming) {
+function mergeAnalytics(current, incoming, skipBreakdowns = false) {
   const merged = current && typeof current === "object" ? current : {};
   const sessionsBefore = asNumber(merged.TotalSessions);
   const sessionsIncoming = Math.max(0, asNumber(incoming.TotalSessions || 1));
@@ -185,6 +204,18 @@ function mergeAnalytics(current, incoming) {
     const source = sourceAliases[key] && typeof sourceAliases[key] === "object" ? sourceAliases[key] : {};
     const add = key === "JoinHoursUtc" || key === "LeaveHoursUtc" || key === "SessionsByDayUtc" ? addRawCount : addCount;
     for (const [name, amount] of Object.entries(source)) add(merged[key], name, amount);
+  }
+
+  const environment = safeKey(incoming.environment || incoming.Environment || incoming.category || incoming.Category || "Game");
+  const accountAgeGroup = incoming.accountAgeGroup || incoming.AccountAgeGroup || incoming.ageGroup || incoming.AgeGroup || "Unknown";
+  merged.Environments = merged.Environments && typeof merged.Environments === "object" ? merged.Environments : {};
+  merged.AccountAgeGroups = merged.AccountAgeGroups && typeof merged.AccountAgeGroups === "object" ? merged.AccountAgeGroups : {};
+  addCount(merged.Environments, environment, sessionsIncoming);
+  addRawCount(merged.AccountAgeGroups, accountAgeGroup, sessionsIncoming);
+
+  if (!skipBreakdowns) {
+    merged.Categories = merged.Categories && typeof merged.Categories === "object" ? merged.Categories : {};
+    merged.Categories[environment] = mergeAnalytics(merged.Categories[environment], incoming, true);
   }
 
   return merged;

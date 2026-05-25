@@ -248,6 +248,23 @@
         background: rgba(23, 40, 66, 0.76);
       }
 
+      .filter-select {
+        min-height: 46px;
+        padding: 0 42px 0 16px;
+        border-radius: 999px;
+        border: 1px solid var(--panel-border);
+        background: rgba(13, 24, 40, 0.88);
+        color: var(--soft);
+        cursor: pointer;
+        box-shadow: var(--shadow-soft);
+        backdrop-filter: blur(14px);
+      }
+
+      .filter-select:focus {
+        outline: 2px solid rgba(93, 228, 255, 0.35);
+        outline-offset: 2px;
+      }
+
       .page-shell {
         max-width: var(--max-width);
         margin: 0 auto;
@@ -733,6 +750,12 @@
           <span id="statusText">Loading</span>
         </div>
 
+        <select id="categoryFilter" class="filter-select" aria-label="Category filter">
+          <option value="All">All categories</option>
+          <option value="Game">Game</option>
+          <option value="InStudio">InStudio</option>
+        </select>
+
         <button id="refreshButton" type="button" class="primary-btn">
           Refresh
         </button>
@@ -826,6 +849,18 @@
         <article class="panel panel-large animate-up delay-5">
           <div class="panel-head">
             <div>
+              <p class="panel-kicker">Audience</p>
+              <h2>Account age groups</h2>
+              <p class="panel-sub">Broad anonymous account-age buckets</p>
+            </div>
+          </div>
+
+          <div id="ageGroups" class="bars"></div>
+        </article>
+
+        <article class="panel panel-large animate-up delay-5">
+          <div class="panel-head">
+            <div>
               <p class="panel-kicker">Diagnostics</p>
               <h2>Raw Anonymous Aggregate</h2>
               <p class="panel-sub">
@@ -871,10 +906,20 @@
           { label: "B-000 to B-050", value: 30 },
           { label: "A-100 to A-150", value: 24 },
           { label: "A-150 to A-200", value: 14 }
+        ],
+        ageGroups: [
+          { label: "0-6 days", value: 6 },
+          { label: "7-29 days", value: 18 },
+          { label: "30-179 days", value: 39 },
+          { label: "180-364 days", value: 31 },
+          { label: "1-2 years", value: 28 },
+          { label: "3+ years", value: 20 }
         ]
       };
 
       let analyticsData = fallbackData;
+      let rawAnalyticsData = null;
+      let selectedCategory = "All";
       const renderIds = new Map();
 
       const palette = {
@@ -1407,6 +1452,41 @@
         });
       }
 
+      function renderAgeGroups(items) {
+        const container = document.getElementById("ageGroups");
+        if (!container) return;
+
+        container.innerHTML = "";
+
+        if (!items || !items.length) {
+          container.innerHTML = '<div class="empty-state">No account-age group data recorded.</div>';
+          return;
+        }
+
+        const maxValue = Math.max(...items.map(item => Number(item.value) || 0), 1);
+
+        items.forEach((item, index) => {
+          const value = Number(item.value) || 0;
+          const percent = (value / maxValue) * 100;
+
+          const row = document.createElement("div");
+          row.className = "mini-bar";
+          row.style.animationDelay = `${index * 0.065}s`;
+
+          row.innerHTML = `
+            <div class="mini-bar-top">
+              <span>${item.label}</span>
+              <strong>${value.toLocaleString()}</strong>
+            </div>
+            <div class="mini-bar-track">
+              <div class="mini-bar-fill" style="width:${percent}%; animation-delay:${0.12 + index * 0.05}s"></div>
+            </div>
+          `;
+
+          container.appendChild(row);
+        });
+      }
+
       function updateRawJson(data) {
         const raw = document.getElementById("rawJson");
         if (raw) raw.textContent = JSON.stringify(data.rawAggregate || data, null, 2);
@@ -1448,15 +1528,63 @@
           }));
       }
 
-      function normalizeData(input) {
-        const data = input || {};
-        const hasRobloxAggregate =
-          data.TotalSessions !== undefined ||
-          data.JoinHoursUtc !== undefined ||
-          data.DeathCauses !== undefined ||
-          data.SectionsCrossed !== undefined;
+      function hasRobloxAggregate(data) {
+        return Boolean(
+          data &&
+          (
+            data.TotalSessions !== undefined ||
+            data.JoinHoursUtc !== undefined ||
+            data.DeathCauses !== undefined ||
+            data.SectionsCrossed !== undefined
+          )
+        );
+      }
 
-        if (hasRobloxAggregate) {
+      function emptyRobloxAggregate(category) {
+        return {
+          Version: 1,
+          TotalSessions: 0,
+          TotalPlaytimeSeconds: 0,
+          AveragePlaytimeSeconds: 0,
+          TotalDeaths: 0,
+          TotalRoomsTravelled: 0,
+          AverageRoomsTravelledBeforeLeave: 0,
+          TotalSectionsCrossed: 0,
+          AverageSectionsCrossedBeforeLeave: 0,
+          TotalMiniSectionsCrossed: 0,
+          AverageMiniSectionsCrossedBeforeLeave: 0,
+          LastUpdatedUtc: null,
+          JoinHoursUtc: {},
+          LeaveHoursUtc: {},
+          SessionsByDayUtc: {},
+          DeathCauses: {},
+          SectionsCrossed: {},
+          MiniSectionsCrossed: {},
+          Environments: category === "All" ? {} : { [category]: 0 },
+          AccountAgeGroups: {},
+          _FilteredCategory: category
+        };
+      }
+
+      function categoryInput(input) {
+        const data = input || {};
+        if (selectedCategory === "All" || !hasRobloxAggregate(data)) return data;
+
+        if (data.Categories && data.Categories[selectedCategory]) {
+          return {
+            ...data.Categories[selectedCategory],
+            _FilteredCategory: selectedCategory,
+            _ParentTotalSessions: data.TotalSessions
+          };
+        }
+
+        return emptyRobloxAggregate(selectedCategory);
+      }
+
+      function normalizeData(input) {
+        const data = categoryInput(input || {});
+
+        if (hasRobloxAggregate(data)) {
           const totalSessions = Number(data.TotalSessions) || 0;
           const averageRooms =
             data.AverageRoomsTravelledBeforeLeave ??
@@ -1471,6 +1599,7 @@
             deathCauses: mapToRows(data.DeathCauses),
             sectionsCrossed: mapToRows(data.SectionsCrossed),
             miniSections: mapToRows(data.MiniSectionsCrossed),
+            ageGroups: mapToRows(data.AccountAgeGroups),
             rawAggregate: data
           };
         }
@@ -1499,11 +1628,16 @@
           miniSections: normalizeArray(
             data.miniSections ?? data.roomGroups,
             fallbackData.miniSections
+          ),
+          ageGroups: normalizeArray(
+            data.ageGroups ?? data.accountAgeGroups,
+            fallbackData.ageGroups
           )
         };
       }
 
       function renderDashboard(data, options = {}) {
+        rawAnalyticsData = data;
         analyticsData = normalizeData(data);
         window.analyticsData = analyticsData;
 
@@ -1514,6 +1648,7 @@
         renderDeathPie(analyticsData, instant);
         renderSectionsChart(analyticsData, instant);
         renderMiniSections(analyticsData.miniSections);
+        renderAgeGroups(analyticsData.ageGroups);
         updateRawJson(analyticsData);
       }
 
@@ -1555,13 +1690,21 @@
       function setupRefresh() {
         const refreshButton = document.getElementById("refreshButton");
         if (refreshButton) refreshButton.addEventListener("click", loadAnalytics);
+
+        const categoryFilter = document.getElementById("categoryFilter");
+        if (categoryFilter) {
+          categoryFilter.addEventListener("change", event => {
+            selectedCategory = event.target.value || "All";
+            renderDashboard(rawAnalyticsData || analyticsData, { instant: true });
+          });
+        }
       }
 
       function setupResize() {
         window.addEventListener(
           "resize",
           debounce(() => {
-            renderDashboard(analyticsData, { instant: true });
+            renderDashboard(rawAnalyticsData || analyticsData, { instant: true });
           }, 160)
         );
       }
