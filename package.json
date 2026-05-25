@@ -1,0 +1,13 @@
+{
+  "name": "rooms-analytics-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Anonymous analytics dashboard backend for Rooms.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}
