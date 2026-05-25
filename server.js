@@ -5,6 +5,7 @@ const crypto = require("node:crypto");
 
 const PORT = Number(process.env.PORT || 8787);
 const INGEST_TOKEN = process.env.ROOMS_ANALYTICS_TOKEN || "change-me-local-token";
+const DEBUG = process.env.ROOMS_ANALYTICS_DEBUG === "1";
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const DATA_DIR = path.join(ROOT, "data");
@@ -83,6 +84,12 @@ function readAnalytics() {
 function writeAnalytics(data) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+function logDebug(...args) {
+  if (DEBUG) {
+    console.log("[analytics-debug]", ...args);
+  }
 }
 
 function safeKey(value) {
@@ -243,13 +250,25 @@ function tokenMatches(token) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
+  if (req.method === "GET" && url.pathname === "/health") {
+    sendJson(res, 200, {
+      ok: true,
+      service: "rooms-analytics-dashboard",
+      uptimeSeconds: Math.round(process.uptime()),
+      timestampUtc: new Date().toISOString().replace(/\.\d{3}Z$/, "Z")
+    });
+    return;
+  }
+
   if (req.method === "GET" && (url.pathname === "/api/analytics" || url.pathname === "/analytics")) {
+    logDebug("analytics read");
     sendJson(res, 200, readAnalytics());
     return;
   }
 
   if (req.method === "POST" && url.pathname === "/api/ingest") {
     if (!tokenMatches(req.headers["x-rooms-token"])) {
+      console.warn("[analytics] rejected ingest with invalid token");
       sendJson(res, 401, { ok: false, error: "Invalid ingest token" });
       return;
     }
@@ -258,14 +277,17 @@ const server = http.createServer(async (req, res) => {
       if (payload.TotalSessions !== undefined || payload.JoinHoursUtc !== undefined) {
         const liveAggregate = normalizeAggregate(payload);
         writeAnalytics(liveAggregate);
+        console.log(`[analytics] replaced aggregate: sessions=${liveAggregate.TotalSessions} deaths=${liveAggregate.TotalDeaths}`);
         sendJson(res, 200, { ok: true, mode: "replace", totalSessions: liveAggregate.TotalSessions });
         return;
       }
 
       const merged = mergeAnalytics(readAnalytics(), payload);
       writeAnalytics(merged);
+      console.log(`[analytics] merged session: sessions=${merged.TotalSessions} deaths=${merged.TotalDeaths}`);
       sendJson(res, 200, { ok: true, mode: "merge", totalSessions: merged.TotalSessions });
     } catch (error) {
+      console.warn("[analytics] ingest failed:", error.message);
       sendJson(res, 400, { ok: false, error: error.message });
     }
     return;
@@ -294,6 +316,7 @@ const server = http.createServer(async (req, res) => {
 
 ensureDataFile();
 server.listen(PORT, () => {
-  console.log(`Rooms analytics dashboard: http://localhost:${PORT}`);
-  console.log(`Roblox ingest endpoint: http://YOUR_SERVER:${PORT}/api/ingest`);
+  console.log(`[analytics] dashboard listening on port ${PORT}`);
+  console.log(`[analytics] health endpoint: /health`);
+  console.log(`[analytics] ingest endpoint: /api/ingest`);
 });
