@@ -1,0 +1,20 @@
+{
+  "Version": 1,
+  "TotalSessions": 0,
+  "TotalPlaytimeSeconds": 0,
+  "AveragePlaytimeSeconds": 0,
+  "TotalDeaths": 0,
+  "TotalRoomsTravelled": 0,
+  "AverageRoomsTravelledBeforeLeave": 0,
+  "TotalSectionsCrossed": 0,
+  "AverageSectionsCrossedBeforeLeave": 0,
+  "TotalMiniSectionsCrossed": 0,
+  "AverageMiniSectionsCrossedBeforeLeave": 0,
+  "LastUpdatedUtc": null,
+  "JoinHoursUtc": {},
+  "LeaveHoursUtc": {},
+  "SessionsByDayUtc": {},
+  "DeathCauses": {},
+  "SectionsCrossed": {},
+  "MiniSectionsCrossed": {}
+}
