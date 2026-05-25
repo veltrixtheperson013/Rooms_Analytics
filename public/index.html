@@ -135,6 +135,10 @@
       }
 
       .topbar {
+        z-index: 30;
+      }
+
+      .topbar {
         max-width: var(--max-width);
         margin: 0 auto;
         padding: 34px 22px 22px;
@@ -248,21 +252,135 @@
         background: rgba(23, 40, 66, 0.76);
       }
 
-      .filter-select {
+      .category-menu {
+        position: relative;
+        min-width: 178px;
+      }
+
+      .category-trigger {
+        width: 100%;
         min-height: 46px;
-        padding: 0 42px 0 16px;
+        padding: 0 14px 0 16px;
         border-radius: 999px;
         border: 1px solid var(--panel-border);
-        background: rgba(13, 24, 40, 0.88);
+        background:
+          linear-gradient(180deg, rgba(18, 33, 55, 0.92), rgba(10, 20, 35, 0.92));
         color: var(--soft);
         cursor: pointer;
         box-shadow: var(--shadow-soft);
         backdrop-filter: blur(14px);
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        font-weight: 850;
+        transition:
+          transform 0.18s ease,
+          border-color 0.18s ease,
+          background 0.18s ease;
       }
 
-      .filter-select:focus {
+      .category-trigger:hover,
+      .category-menu.is-open .category-trigger {
+        transform: translateY(-2px);
+        border-color: rgba(93, 228, 255, 0.34);
+        background:
+          linear-gradient(180deg, rgba(24, 44, 72, 0.96), rgba(12, 24, 42, 0.96));
+      }
+
+      .category-trigger:focus-visible {
         outline: 2px solid rgba(93, 228, 255, 0.35);
         outline-offset: 2px;
+      }
+
+      .category-current {
+        white-space: nowrap;
+      }
+
+      .category-chevron {
+        width: 9px;
+        height: 9px;
+        border-right: 2px solid var(--cyan);
+        border-bottom: 2px solid var(--cyan);
+        transform: rotate(45deg) translateY(-2px);
+        transition: transform 0.18s ease;
+      }
+
+      .category-menu.is-open .category-chevron {
+        transform: rotate(225deg) translateY(-1px);
+      }
+
+      .category-options {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        width: min(240px, 72vw);
+        padding: 8px;
+        margin: 0;
+        list-style: none;
+        border-radius: 18px;
+        border: 1px solid rgba(160, 200, 255, 0.2);
+        background:
+          linear-gradient(180deg, rgba(18, 33, 55, 0.98), rgba(7, 17, 31, 0.98));
+        box-shadow: 0 22px 58px rgba(0, 0, 0, 0.42);
+        backdrop-filter: blur(18px);
+        opacity: 0;
+        transform: translateY(-8px) scale(0.98);
+        transform-origin: top right;
+        pointer-events: none;
+        transition:
+          opacity 0.16s ease,
+          transform 0.16s ease;
+        z-index: 20;
+      }
+
+      .category-menu.is-open .category-options {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+      }
+
+      .category-option {
+        width: 100%;
+        min-height: 42px;
+        padding: 0 12px;
+        border: 0;
+        border-radius: 12px;
+        color: var(--soft);
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: left;
+        font-weight: 850;
+        transition:
+          background 0.14s ease,
+          color 0.14s ease,
+          transform 0.14s ease;
+      }
+
+      .category-option:hover,
+      .category-option:focus-visible {
+        outline: 0;
+        color: var(--text);
+        background: rgba(93, 228, 255, 0.1);
+        transform: translateX(2px);
+      }
+
+      .category-option[aria-selected="true"] {
+        color: #041321;
+        background: linear-gradient(135deg, var(--blue), var(--cyan));
+      }
+
+      .category-option[aria-selected="true"]::after {
+        content: "";
+        width: 8px;
+        height: 14px;
+        border-right: 2px solid #041321;
+        border-bottom: 2px solid #041321;
+        transform: rotate(45deg) translateY(-2px);
       }
 
       .page-shell {
@@ -750,11 +868,36 @@
           <span id="statusText">Loading</span>
         </div>
 
-        <select id="categoryFilter" class="filter-select" aria-label="Category filter">
-          <option value="All">All categories</option>
-          <option value="Game">Game</option>
-          <option value="InStudio">InStudio</option>
-        </select>
+        <div id="categoryMenu" class="category-menu">
+          <button
+            id="categoryTrigger"
+            class="category-trigger"
+            type="button"
+            aria-haspopup="listbox"
+            aria-expanded="false"
+          >
+            <span id="categoryCurrent" class="category-current">All categories</span>
+            <span class="category-chevron" aria-hidden="true"></span>
+          </button>
+
+          <ul id="categoryOptions" class="category-options" role="listbox" aria-label="Category filter">
+            <li>
+              <button class="category-option" type="button" role="option" data-value="All" aria-selected="true">
+                All categories
+              </button>
+            </li>
+            <li>
+              <button class="category-option" type="button" role="option" data-value="Game" aria-selected="false">
+                Game
+              </button>
+            </li>
+            <li>
+              <button class="category-option" type="button" role="option" data-value="InStudio" aria-selected="false">
+                InStudio
+              </button>
+            </li>
+          </ul>
+        </div>
 
         <button id="refreshButton" type="button" class="primary-btn">
           Refresh
@@ -1690,14 +1833,59 @@
       function setupRefresh() {
         const refreshButton = document.getElementById("refreshButton");
         if (refreshButton) refreshButton.addEventListener("click", loadAnalytics);
+      }
 
-        const categoryFilter = document.getElementById("categoryFilter");
-        if (categoryFilter) {
-          categoryFilter.addEventListener("change", event => {
-            selectedCategory = event.target.value || "All";
-            renderDashboard(rawAnalyticsData || analyticsData, { instant: true });
+      function setCategoryMenuOpen(isOpen) {
+        const menu = document.getElementById("categoryMenu");
+        const trigger = document.getElementById("categoryTrigger");
+        if (!menu || !trigger) return;
+
+        menu.classList.toggle("is-open", isOpen);
+        trigger.setAttribute("aria-expanded", String(isOpen));
+      }
+
+      function selectCategory(value) {
+        selectedCategory = value || "All";
+
+        const current = document.getElementById("categoryCurrent");
+        const options = document.querySelectorAll(".category-option");
+
+        options.forEach(option => {
+          const isSelected = option.dataset.value === selectedCategory;
+          option.setAttribute("aria-selected", String(isSelected));
+          if (isSelected && current) current.textContent = option.textContent.trim();
+        });
+
+        setCategoryMenuOpen(false);
+        renderDashboard(rawAnalyticsData || analyticsData, { instant: true });
+      }
+
+      function setupCategoryMenu() {
+        const menu = document.getElementById("categoryMenu");
+        const trigger = document.getElementById("categoryTrigger");
+        const options = document.querySelectorAll(".category-option");
+        if (!menu || !trigger || !options.length) return;
+
+        trigger.addEventListener("click", () => {
+          setCategoryMenuOpen(!menu.classList.contains("is-open"));
+        });
+
+        options.forEach(option => {
+          option.addEventListener("click", () => {
+            selectCategory(option.dataset.value);
           });
-        }
+        });
+
+        document.addEventListener("click", event => {
+          if (!menu.contains(event.target)) setCategoryMenuOpen(false);
+        });
+
+        document.addEventListener("keydown", event => {
+          if (event.key === "Escape") {
+            setCategoryMenuOpen(false);
+            trigger.focus();
+          }
+        });
       }
 
       function setupResize() {
@@ -1712,6 +1900,7 @@
       function boot() {
         setupPanelGlow();
         setupRefresh();
+        setupCategoryMenu();
         setupResize();
         loadAnalytics();
       }
