@@ -10,6 +10,7 @@ const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const DATA_DIR = path.join(ROOT, "data");
 const DATA_FILE = path.join(DATA_DIR, "analytics.json");
+const DATA_BACKUP_FILE = path.join(DATA_DIR, "analytics.backup.json");
 
 const EMPTY_DATA = {
   Version: 1,
@@ -80,16 +81,23 @@ function ensureDataFile() {
 
 function readAnalytics() {
   ensureDataFile();
-  try {
-    return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-  } catch {
-    return { Version: 1 };
+  for (const file of [DATA_FILE, DATA_BACKUP_FILE]) {
+    try {
+      return JSON.parse(fs.readFileSync(file, "utf8"));
+    } catch {
+      // Try the next save file.
+    }
   }
+  return { ...EMPTY_DATA };
 }
 
 function writeAnalytics(data) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  const body = JSON.stringify(data, null, 2);
+  const tempFile = path.join(DATA_DIR, `analytics.${process.pid}.tmp`);
+  fs.writeFileSync(tempFile, body);
+  fs.renameSync(tempFile, DATA_FILE);
+  fs.writeFileSync(DATA_BACKUP_FILE, body);
 }
 
 function logDebug(...args) {
