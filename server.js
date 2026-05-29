@@ -8,7 +8,11 @@ const INGEST_TOKEN = process.env.ROOMS_ANALYTICS_TOKEN || "change-me-local-token
 const DEBUG = process.env.ROOMS_ANALYTICS_DEBUG === "1";
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
-const DATA_DIR = path.join(ROOT, "data");
+const DATA_DIR = path.resolve(
+  process.env.ROOMS_ANALYTICS_DATA_DIR ||
+  process.env.RENDER_DISK_PATH ||
+  path.join(ROOT, "data")
+);
 const DATA_FILE = path.join(DATA_DIR, "analytics.json");
 const DATA_BACKUP_FILE = path.join(DATA_DIR, "analytics.backup.json");
 
@@ -32,6 +36,7 @@ const EMPTY_DATA = {
   SectionsCrossed: {},
   MiniSectionsCrossed: {},
   Environments: {},
+  AgeGroups: {},
   AccountAgeGroups: {},
   Categories: {}
 };
@@ -68,9 +73,23 @@ const DEMO_DATA = {
   SectionsCrossed: { A: 42, B: 29 },
   MiniSectionsCrossed: { Office: 33, Basic: 41, Catwalk: 18, Kitchen: 12, "B-Basic": 14 },
   Environments: { Game: 38, InStudio: 4 },
-  AccountAgeGroups: { "0-6 days": 3, "7-29 days": 8, "30-179 days": 12, "180-364 days": 9, "1-2 years": 6, "3+ years": 4 },
+  AgeGroups: { "13+": 16, Unverified: 10, "9+": 8, "16+": 6, "21+": 2 },
+  AccountAgeGroups: {},
   Categories: {}
 };
+
+const MAP_FIELDS = [
+  "JoinHoursUtc",
+  "LeaveHoursUtc",
+  "SessionsByDayUtc",
+  "DeathCauses",
+  "SectionsCrossed",
+  "MiniSectionsCrossed",
+  "Environments",
+  "AgeGroups",
+  "AccountAgeGroups",
+  "Categories"
+];
 
 function ensureDataFile() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -79,21 +98,34 @@ function ensureDataFile() {
   }
 }
 
+function withDefaults(data) {
+  const out = {
+    ...EMPTY_DATA,
+    ...(data && typeof data === "object" && !Array.isArray(data) ? data : {})
+  };
+  for (const field of MAP_FIELDS) {
+    if (!out[field] || typeof out[field] !== "object" || Array.isArray(out[field])) {
+      out[field] = {};
+    }
+  }
+  return out;
+}
+
 function readAnalytics() {
   ensureDataFile();
   for (const file of [DATA_FILE, DATA_BACKUP_FILE]) {
     try {
-      return JSON.parse(fs.readFileSync(file, "utf8"));
+      return withDefaults(JSON.parse(fs.readFileSync(file, "utf8")));
     } catch {
       // Try the next save file.
     }
   }
-  return { ...EMPTY_DATA };
+  return withDefaults();
 }
 
 function writeAnalytics(data) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  const body = JSON.stringify(data, null, 2);
+  const body = JSON.stringify(withDefaults(data), null, 2);
   const tempFile = path.join(DATA_DIR, `analytics.${process.pid}.tmp`);
   fs.writeFileSync(tempFile, body);
   fs.renameSync(tempFile, DATA_FILE);
@@ -174,7 +206,8 @@ function normalizeAggregate(input) {
     SectionsCrossed: mapCounts(input.SectionsCrossed),
     MiniSectionsCrossed: mapCounts(input.MiniSectionsCrossed),
     Environments: mapCounts(input.Environments || input.EnvironmentTotals),
-    AccountAgeGroups: mapCounts(input.AccountAgeGroups || input.AgeGroups, true),
+    AgeGroups: mapCounts(input.AgeGroups || input.RobloxAgeGroups || input.UserAgeGroups, true),
+    AccountAgeGroups: mapCounts(input.AccountAgeGroups, true),
     Categories: normalizeCategoryMap(input.Categories)
   };
 }
@@ -215,11 +248,21 @@ function mergeAnalytics(current, incoming, skipBreakdowns = false) {
   }
 
   const environment = safeKey(incoming.environment || incoming.Environment || incoming.category || incoming.Category || "Game");
-  const accountAgeGroup = incoming.accountAgeGroup || incoming.AccountAgeGroup || incoming.ageGroup || incoming.AgeGroup || "Unknown";
+  const ageGroup =
+    incoming.ageGroup ||
+    incoming.AgeGroup ||
+    incoming.robloxAgeGroup ||
+    incoming.RobloxAgeGroup ||
+    incoming.userAgeGroup ||
+    incoming.UserAgeGroup ||
+    "Unknown";
+  const accountAgeGroup = incoming.accountAgeGroup || incoming.AccountAgeGroup;
   merged.Environments = merged.Environments && typeof merged.Environments === "object" ? merged.Environments : {};
+  merged.AgeGroups = merged.AgeGroups && typeof merged.AgeGroups === "object" ? merged.AgeGroups : {};
   merged.AccountAgeGroups = merged.AccountAgeGroups && typeof merged.AccountAgeGroups === "object" ? merged.AccountAgeGroups : {};
   addCount(merged.Environments, environment, sessionsIncoming);
-  addRawCount(merged.AccountAgeGroups, accountAgeGroup, sessionsIncoming);
+  addRawCount(merged.AgeGroups, ageGroup, sessionsIncoming);
+  if (accountAgeGroup) addRawCount(merged.AccountAgeGroups, accountAgeGroup, sessionsIncoming);
 
   if (!skipBreakdowns) {
     merged.Categories = merged.Categories && typeof merged.Categories === "object" ? merged.Categories : {};
@@ -356,6 +399,7 @@ const server = http.createServer(async (req, res) => {
 ensureDataFile();
 server.listen(PORT, () => {
   console.log(`[analytics] dashboard listening on port ${PORT}`);
+  console.log(`[analytics] data file: ${DATA_FILE}`);
   console.log(`[analytics] health endpoint: /health`);
   console.log(`[analytics] ingest endpoint: /api/ingest`);
 });

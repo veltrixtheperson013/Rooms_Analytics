@@ -993,8 +993,8 @@
           <div class="panel-head">
             <div>
               <p class="panel-kicker">Audience</p>
-              <h2>Account age groups</h2>
-              <p class="panel-sub">Broad anonymous account-age buckets</p>
+              <h2>Roblox age groups</h2>
+              <p class="panel-sub">Anonymous brackets from Roblox age APIs</p>
             </div>
           </div>
 
@@ -1051,12 +1051,11 @@
           { label: "A-150 to A-200", value: 14 }
         ],
         ageGroups: [
-          { label: "0-6 days", value: 6 },
-          { label: "7-29 days", value: 18 },
-          { label: "30-179 days", value: 39 },
-          { label: "180-364 days", value: 31 },
-          { label: "1-2 years", value: 28 },
-          { label: "3+ years", value: 20 }
+          { label: "13+", value: 46 },
+          { label: "Unverified", value: 34 },
+          { label: "9+", value: 28 },
+          { label: "16+", value: 22 },
+          { label: "21+", value: 12 }
         ]
       };
 
@@ -1602,7 +1601,7 @@
         container.innerHTML = "";
 
         if (!items || !items.length) {
-          container.innerHTML = '<div class="empty-state">No account-age group data recorded.</div>';
+          container.innerHTML = '<div class="empty-state">No Roblox age group data recorded.</div>';
           return;
         }
 
@@ -1704,6 +1703,7 @@
           SectionsCrossed: {},
           MiniSectionsCrossed: {},
           Environments: category === "All" ? {} : { [category]: 0 },
+          AgeGroups: {},
           AccountAgeGroups: {},
           _FilteredCategory: category
         };
@@ -1742,7 +1742,7 @@
             deathCauses: mapToRows(data.DeathCauses),
             sectionsCrossed: mapToRows(data.SectionsCrossed),
             miniSections: mapToRows(data.MiniSectionsCrossed),
-            ageGroups: mapToRows(data.AccountAgeGroups),
+            ageGroups: mapToRows(data.AgeGroups || data.RobloxAgeGroups || data.UserAgeGroups),
             rawAggregate: data
           };
         }
@@ -1773,7 +1773,7 @@
             fallbackData.miniSections
           ),
           ageGroups: normalizeArray(
-            data.ageGroups ?? data.accountAgeGroups,
+            data.ageGroups ?? data.robloxAgeGroups ?? data.userAgeGroups,
             fallbackData.ageGroups
           )
         };

@@ -16,5 +16,9 @@
   "SessionsByDayUtc": {},
   "DeathCauses": {},
   "SectionsCrossed": {},
-  "MiniSectionsCrossed": {}
+  "MiniSectionsCrossed": {},
+  "Environments": {},
+  "AgeGroups": {},
+  "AccountAgeGroups": {},
+  "Categories": {}
 }
