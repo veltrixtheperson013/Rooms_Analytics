@@ -558,6 +558,14 @@
         border-radius: 3px;
       }
 
+      .legend-item strong {
+        color: var(--text);
+      }
+
+      .legend-percent {
+        color: var(--faint);
+      }
+
       .bars {
         display: grid;
         gap: 14px;
@@ -639,6 +647,209 @@
         border-radius: 16px;
         border: 1px dashed rgba(255, 255, 255, 0.13);
         background: rgba(255, 255, 255, 0.025);
+      }
+
+      .danger-zone {
+        margin-top: 16px;
+        padding: 18px;
+        border-radius: var(--radius);
+        border: 1px solid rgba(255, 95, 109, 0.24);
+        background:
+          linear-gradient(180deg, rgba(56, 18, 26, 0.7), rgba(18, 12, 20, 0.76)),
+          rgba(15, 26, 44, 0.78);
+        box-shadow: var(--shadow);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+      }
+
+      .danger-zone h2 {
+        margin: 0;
+        font-size: 1.14rem;
+        letter-spacing: -0.02em;
+      }
+
+      .danger-zone p:last-child {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .danger-btn,
+      .modal-secondary-btn {
+        min-height: 44px;
+        padding: 0 16px;
+        border-radius: 999px;
+        font-weight: 950;
+        cursor: pointer;
+        transition:
+          transform 0.18s ease,
+          filter 0.18s ease,
+          border-color 0.18s ease,
+          background 0.18s ease;
+      }
+
+      .danger-btn {
+        border: 0;
+        background: linear-gradient(135deg, #ff5f6d, #ff9f43);
+        color: #22070a;
+        box-shadow: 0 16px 38px rgba(255, 95, 109, 0.24);
+      }
+
+      .danger-btn:hover,
+      .modal-secondary-btn:hover {
+        transform: translateY(-2px);
+        filter: brightness(1.04);
+      }
+
+      .danger-btn:disabled,
+      .modal-secondary-btn:disabled,
+      .primary-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.68;
+        transform: none;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        padding: 22px;
+        background: rgba(3, 7, 13, 0.78);
+        backdrop-filter: blur(18px);
+      }
+
+      .modal-backdrop[hidden] {
+        display: none;
+      }
+
+      .security-modal {
+        position: relative;
+        width: min(560px, 100%);
+        max-height: min(720px, calc(100vh - 44px));
+        overflow: auto;
+        padding: 24px;
+        border-radius: var(--radius);
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        background:
+          linear-gradient(180deg, rgba(22, 38, 63, 0.98), rgba(8, 17, 31, 0.98));
+        box-shadow: 0 30px 100px rgba(0, 0, 0, 0.52);
+      }
+
+      .modal-close {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 38px;
+        height: 38px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--soft);
+        font-weight: 950;
+        cursor: pointer;
+      }
+
+      .security-modal h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        letter-spacing: -0.035em;
+      }
+
+      .modal-copy {
+        margin: 10px 38px 18px 0;
+        color: var(--soft);
+        line-height: 1.55;
+      }
+
+      .modal-body {
+        display: grid;
+        gap: 12px;
+      }
+
+      .modal-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .modal-secondary-btn {
+        border: 1px solid rgba(160, 200, 255, 0.18);
+        background: rgba(255, 255, 255, 0.045);
+        color: var(--soft);
+      }
+
+      .modal-error {
+        min-height: 20px;
+        margin-top: 12px;
+        color: #ffb0bb;
+        font-weight: 800;
+        font-size: 0.9rem;
+      }
+
+      .code-input,
+      .math-row input {
+        width: 100%;
+        min-height: 46px;
+        border-radius: 14px;
+        border: 1px solid rgba(160, 200, 255, 0.16);
+        background: rgba(4, 13, 24, 0.76);
+        color: var(--text);
+        padding: 0 14px;
+        outline: 0;
+      }
+
+      .code-input:focus,
+      .math-row input:focus {
+        border-color: rgba(93, 228, 255, 0.46);
+        box-shadow: 0 0 0 3px rgba(93, 228, 255, 0.1);
+      }
+
+      .click-box {
+        min-height: 150px;
+        border-radius: 18px;
+        border: 1px dashed rgba(255, 209, 102, 0.34);
+        background:
+          radial-gradient(circle at 50% 42%, rgba(255, 209, 102, 0.16), transparent 48%),
+          rgba(255, 255, 255, 0.035);
+        color: var(--text);
+        display: grid;
+        place-items: center;
+        text-align: center;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .click-box strong {
+        display: block;
+        font-size: 2.3rem;
+        line-height: 1;
+      }
+
+      .math-stack {
+        display: grid;
+        gap: 10px;
+      }
+
+      .math-row {
+        display: grid;
+        grid-template-columns: minmax(90px, 1fr) 110px;
+        gap: 10px;
+        align-items: center;
+        padding: 12px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.035);
+        border: 1px solid rgba(255, 255, 255, 0.065);
+      }
+
+      .math-row label {
+        color: var(--soft);
+        font-weight: 950;
       }
 
       .animate-up {
@@ -826,6 +1037,28 @@
           border-radius: 18px;
         }
 
+        .danger-zone {
+          align-items: stretch;
+          flex-direction: column;
+          border-radius: 18px;
+        }
+
+        .danger-btn {
+          width: 100%;
+        }
+
+        .modal-actions {
+          justify-content: stretch;
+        }
+
+        .modal-actions button {
+          flex: 1 1 150px;
+        }
+
+        .math-row {
+          grid-template-columns: 1fr;
+        }
+
         .chart-tall,
         .chart-medium {
           min-height: 260px;
@@ -938,7 +1171,7 @@
             <div>
               <p class="panel-kicker">Traffic</p>
               <h2>Join vs Leave Hours</h2>
-              <p class="panel-sub">UTC hour buckets from anonymous sessions</p>
+              <p class="panel-sub">UTC hour buckets shown in AM/PM</p>
             </div>
           </div>
 
@@ -1015,10 +1248,32 @@
           <pre id="rawJson" class="raw-json"></pre>
         </article>
       </section>
+
+      <section class="danger-zone animate-up delay-5" aria-label="Danger zone">
+        <div>
+          <p class="panel-kicker">Danger zone</p>
+          <h2>Wipe Analytics Data</h2>
+          <p>Clears the live aggregate and backup file after the full security check.</p>
+        </div>
+        <button id="wipeDataButton" type="button" class="danger-btn">Wipe all data</button>
+      </section>
     </main>
+
+    <div id="wipeModal" class="modal-backdrop" hidden>
+      <section class="security-modal" role="dialog" aria-modal="true" aria-labelledby="wipeModalTitle">
+        <button id="wipeCloseButton" class="modal-close" type="button" aria-label="Close">X</button>
+        <p id="wipeModalKicker" class="panel-kicker">Security check</p>
+        <h2 id="wipeModalTitle">Wipe Analytics Data</h2>
+        <p id="wipeModalText" class="modal-copy"></p>
+        <div id="wipeModalBody" class="modal-body"></div>
+        <div id="wipeModalError" class="modal-error" role="alert"></div>
+        <div id="wipeModalActions" class="modal-actions"></div>
+      </section>
+    </div>
 
     <script>
       const API_URL = "/api/analytics";
+      const WIPE_EMAIL = "veltrixtheperson013@proton.me";
 
       const fallbackData = {
         totalSessions: 142,
@@ -1026,12 +1281,12 @@
         avgRooms: 36.8,
         totalDeaths: 69,
         joinLeaveHours: [
-          { hour: "18:00", joins: 6, leaves: 3 },
-          { hour: "19:00", joins: 8, leaves: 7 },
-          { hour: "20:00", joins: 11, leaves: 10 },
-          { hour: "21:00", joins: 9, leaves: 12 },
-          { hour: "22:00", joins: 8, leaves: 10 },
-          { hour: "23:00", joins: 1, leaves: 1 }
+          { hour: "6 PM", joins: 6, leaves: 3 },
+          { hour: "7 PM", joins: 8, leaves: 7 },
+          { hour: "8 PM", joins: 11, leaves: 10 },
+          { hour: "9 PM", joins: 9, leaves: 12 },
+          { hour: "10 PM", joins: 8, leaves: 10 },
+          { hour: "11 PM", joins: 1, leaves: 1 }
         ],
         deathCauses: [
           { label: "A-60", value: 22 },
@@ -1063,6 +1318,13 @@
       let rawAnalyticsData = null;
       let selectedCategory = "All";
       const renderIds = new Map();
+      const wipeState = {
+        sessionId: null,
+        clickCount: 0,
+        problems: [],
+        clickLocked: false,
+        flowId: 0
+      };
 
       const palette = {
         blue: "#56b3ff",
@@ -1267,6 +1529,27 @@
         return gradient;
       }
 
+      function hexToRgba(hex, alpha) {
+        const value = String(hex || "").replace("#", "");
+        const full = value.length === 3
+          ? value.split("").map(char => char + char).join("")
+          : value;
+        const number = Number.parseInt(full, 16);
+        const r = (number >> 16) & 255;
+        const g = (number >> 8) & 255;
+        const b = number & 255;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+
+      function formatHour12(hour) {
+        const numericHour = Number(hour);
+        if (!Number.isFinite(numericHour)) return String(hour || "");
+        const normalized = ((Math.round(numericHour) % 24) + 24) % 24;
+        const suffix = normalized >= 12 ? "PM" : "AM";
+        const display = normalized % 12 || 12;
+        return `${display} ${suffix}`;
+      }
+
       function renderHoursChart(data, instant = false) {
         const canvas = document.getElementById("hoursChart");
         if (!canvas) return;
@@ -1390,14 +1673,29 @@
         if (!canvas) return;
 
         const { ctx, width, height } = resizeCanvas(canvas, 320);
-        const items = Array.isArray(data.deathCauses) ? data.deathCauses : [];
+        const rawItems = Array.isArray(data.deathCauses) ? data.deathCauses : [];
+        const topItems = rawItems.slice(0, 6);
+        const otherValue = rawItems
+          .slice(6)
+          .reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+        const items = otherValue > 0
+          ? [...topItems, { label: "Other", value: otherValue }]
+          : topItems;
         const total = items.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
-        const colors = [palette.blue, palette.green, palette.yellow, palette.pink, palette.purple, palette.red];
+        const colors = [
+          palette.blue,
+          palette.green,
+          palette.yellow,
+          palette.pink,
+          palette.purple,
+          palette.red,
+          "#6ee7f9"
+        ];
 
         const cx = width / 2;
-        const cy = height / 2;
-        const radius = Math.min(width, height) * 0.31;
-        const inner = radius * 0.53;
+        const cy = height / 2 + 2;
+        const radius = Math.min(width, height) * 0.34;
+        const inner = radius * 0.58;
 
         function draw(progress) {
           ctx.clearRect(0, 0, width, height);
@@ -1411,40 +1709,90 @@
             return;
           }
 
-          let angle = -Math.PI / 2 - (1 - progress) * 0.9;
+          const halo = ctx.createRadialGradient(cx, cy, inner * 0.6, cx, cy, radius * 1.55);
+          halo.addColorStop(0, "rgba(93, 228, 255, 0.12)");
+          halo.addColorStop(0.7, "rgba(86, 179, 255, 0.04)");
+          halo.addColorStop(1, "rgba(86, 179, 255, 0)");
+          ctx.fillStyle = halo;
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius * 1.55, 0, Math.PI * 2);
+          ctx.fill();
 
-          ctx.save();
-          ctx.shadowColor = "rgba(93, 228, 255, 0.16)";
-          ctx.shadowBlur = 24;
+          let angle = -Math.PI / 2 - (1 - progress) * 0.9;
+          const gap = 0.018;
 
           items.forEach((item, index) => {
             const value = Number(item.value) || 0;
             const slice = (value / total) * Math.PI * 2 * progress;
+            const start = angle + Math.min(gap, slice * 0.2);
+            const end = angle + slice - Math.min(gap, slice * 0.2);
+            const color = colors[index % colors.length];
+            const gradient = ctx.createRadialGradient(cx, cy, inner * 0.65, cx, cy, radius * 1.05);
+            gradient.addColorStop(0, hexToRgba(color, 0.82));
+            gradient.addColorStop(1, color);
 
             ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.arc(cx, cy, radius, angle, angle + slice);
+            ctx.arc(cx, cy, radius, start, end);
+            ctx.arc(cx, cy, inner, end, start, true);
             ctx.closePath();
-            ctx.fillStyle = colors[index % colors.length];
-            ctx.fill();
 
-            ctx.strokeStyle = "rgba(7, 17, 31, 0.55)";
-            ctx.lineWidth = 2;
+            ctx.save();
+            ctx.shadowColor = hexToRgba(color, 0.28);
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.restore();
+
+            ctx.strokeStyle = "rgba(7, 17, 31, 0.72)";
+            ctx.lineWidth = 3;
             ctx.stroke();
+
+            if (progress > 0.94 && width > 420 && value / total >= 0.08) {
+              const mid = start + (end - start) / 2;
+              const lineStartX = cx + Math.cos(mid) * (radius + 4);
+              const lineStartY = cy + Math.sin(mid) * (radius + 4);
+              const lineEndX = cx + Math.cos(mid) * (radius + 28);
+              const lineEndY = cy + Math.sin(mid) * (radius + 28);
+              const labelX = lineEndX + (Math.cos(mid) >= 0 ? 12 : -12);
+              const align = Math.cos(mid) >= 0 ? "left" : "right";
+
+              ctx.strokeStyle = hexToRgba(color, 0.72);
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.moveTo(lineStartX, lineStartY);
+              ctx.lineTo(lineEndX, lineEndY);
+              ctx.lineTo(labelX, lineEndY);
+              ctx.stroke();
+
+              drawText(ctx, `${Math.round((value / total) * 100)}%`, labelX, lineEndY - 9, {
+                color,
+                align,
+                font: "950 12px Inter, system-ui, sans-serif"
+              });
+              drawText(ctx, item.label, labelX, lineEndY + 8, {
+                color: palette.soft,
+                align,
+                font: "850 11px Inter, system-ui, sans-serif"
+              });
+            }
 
             angle += slice;
           });
 
-          ctx.restore();
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius + 2, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(255,255,255,0.08)";
+          ctx.lineWidth = 2;
+          ctx.stroke();
 
           ctx.beginPath();
           ctx.arc(cx, cy, inner, 0, Math.PI * 2);
-          ctx.fillStyle = palette.panel;
+          ctx.fillStyle = "#07111f";
           ctx.fill();
 
           ctx.beginPath();
-          ctx.arc(cx, cy, inner + 1, 0, Math.PI * 2);
-          ctx.strokeStyle = "rgba(255,255,255,0.08)";
+          ctx.arc(cx, cy, inner + 2, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(255,255,255,0.12)";
           ctx.lineWidth = 2;
           ctx.stroke();
 
@@ -1479,9 +1827,12 @@
         items.forEach((item, index) => {
           const el = document.createElement("span");
           el.className = "legend-item";
+          const percent = Math.round(((Number(item.value) || 0) / total) * 100);
           el.innerHTML = `
             <span class="legend-swatch" style="background:${colors[index % colors.length]}"></span>
-            <span>${item.label} <strong>${item.value}</strong></span>
+            <span>${item.label}</span>
+            <strong>${Number(item.value).toLocaleString()}</strong>
+            <span class="legend-percent">${percent}%</span>
           `;
           legend.appendChild(el);
         });
@@ -1649,8 +2000,14 @@
 
       function hourLabel(value) {
         const text = String(value || "");
+        const parsedDate = new Date(text);
+        if (text.includes("T") && !Number.isNaN(parsedDate.getTime())) {
+          return formatHour12(parsedDate.getUTCHours());
+        }
         const match = text.match(/T(\d{2}):00:00Z$/);
-        if (match) return `${match[1]}:00`;
+        if (match) return formatHour12(match[1]);
+        const hourMatch = text.match(/^(\d{1,2})(?::00)?$/);
+        if (hourMatch) return formatHour12(hourMatch[1]);
         return text.replace("T", " ").replace(":00:00Z", "Z");
       }
 
@@ -1821,6 +2178,324 @@
         }
       }
 
+      function escapeHtml(value) {
+        const replacements = {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        };
+        return String(value || "").replace(/[&<>"']/g, char => replacements[char]);
+      }
+
+      async function postJson(url, payload = {}) {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload),
+          cache: "no-store"
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) {
+          const error = new Error(data.error || `HTTP ${response.status}`);
+          error.data = data;
+          throw error;
+        }
+        return data;
+      }
+
+      function wipeEls() {
+        return {
+          modal: document.getElementById("wipeModal"),
+          kicker: document.getElementById("wipeModalKicker"),
+          title: document.getElementById("wipeModalTitle"),
+          text: document.getElementById("wipeModalText"),
+          body: document.getElementById("wipeModalBody"),
+          error: document.getElementById("wipeModalError"),
+          actions: document.getElementById("wipeModalActions")
+        };
+      }
+
+      function setWipeError(message) {
+        const { error } = wipeEls();
+        if (error) error.textContent = message || "";
+      }
+
+      function setWipeBusy(isBusy) {
+        document
+          .querySelectorAll("#wipeModal button, #wipeModal input")
+          .forEach(element => {
+            element.disabled = Boolean(isBusy);
+          });
+      }
+
+      function makeModalButton(label, className, onClick) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = className;
+        button.textContent = label;
+        button.addEventListener("click", onClick);
+        return button;
+      }
+
+      function renderWipeModal({ kicker = "Security check", title, text, body = "", actions = [] }) {
+        const els = wipeEls();
+        if (!els.modal || !els.kicker || !els.title || !els.text || !els.body || !els.actions) return;
+
+        els.kicker.textContent = kicker;
+        els.title.textContent = title;
+        els.text.textContent = text;
+        els.body.innerHTML = body;
+        els.actions.innerHTML = "";
+        setWipeError("");
+        actions.forEach(action => els.actions.appendChild(action));
+        els.modal.hidden = false;
+      }
+
+      function closeWipeModal() {
+        const { modal } = wipeEls();
+        if (modal) modal.hidden = true;
+        wipeState.sessionId = null;
+        wipeState.clickCount = 0;
+        wipeState.problems = [];
+        wipeState.clickLocked = false;
+        wipeState.flowId += 1;
+      }
+
+      async function startWipeFlow() {
+        const flowId = wipeState.flowId + 1;
+        wipeState.flowId = flowId;
+        wipeState.sessionId = null;
+        wipeState.clickCount = 0;
+        wipeState.problems = [];
+        wipeState.clickLocked = false;
+
+        renderWipeModal({
+          title: "Sending wipe code",
+          text: `A one-time code is being sent to ${WIPE_EMAIL}.`,
+          body: '<div class="empty-state">Waiting for email delivery.</div>',
+          actions: [
+            makeModalButton("Cancel", "modal-secondary-btn", closeWipeModal)
+          ]
+        });
+
+        try {
+          const result = await postJson("/api/wipe/request-code");
+          if (flowId !== wipeState.flowId) return;
+          wipeState.sessionId = result.sessionId;
+          renderCodeStep();
+        } catch (error) {
+          if (flowId !== wipeState.flowId) return;
+          renderWipeModal({
+            kicker: "Email failed",
+            title: "Code not sent",
+            text: error.message,
+            body: '<div class="empty-state">Configure the server email settings, then try again.</div>',
+            actions: [
+              makeModalButton("Try again", "primary-btn", startWipeFlow),
+              makeModalButton("Cancel", "modal-secondary-btn", closeWipeModal)
+            ]
+          });
+        }
+      }
+
+      function renderCodeStep() {
+        renderWipeModal({
+          title: "Enter wipe code",
+          text: `Enter the code sent to ${WIPE_EMAIL}.`,
+          body: '<input id="wipeCodeInput" class="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="6-digit code" />',
+          actions: [
+            makeModalButton("Verify code", "primary-btn", verifyWipeCode),
+            makeModalButton("Cancel", "modal-secondary-btn", closeWipeModal)
+          ]
+        });
+
+        window.setTimeout(() => {
+          const input = document.getElementById("wipeCodeInput");
+          if (input) input.focus();
+        }, 0);
+      }
+
+      async function verifyWipeCode() {
+        const input = document.getElementById("wipeCodeInput");
+        const code = input ? input.value.trim() : "";
+        if (!code) {
+          setWipeError("Enter the emailed code.");
+          return;
+        }
+
+        setWipeBusy(true);
+        try {
+          await postJson("/api/wipe/verify-code", {
+            sessionId: wipeState.sessionId,
+            code
+          });
+          renderConfirmStep();
+        } catch (error) {
+          if (error.data?.problems) {
+            wipeState.problems = error.data.problems;
+            renderMathStep();
+          }
+          setWipeError(error.message);
+        } finally {
+          setWipeBusy(false);
+        }
+      }
+
+      function renderConfirmStep() {
+        renderWipeModal({
+          kicker: "Final confirmation",
+          title: "Confirm permanent wipe",
+          text: "This will clear the live aggregate data and its backup file.",
+          body: '<div class="empty-state">This action cannot be undone from the dashboard.</div>',
+          actions: [
+            makeModalButton("Confirm wipe", "danger-btn", confirmWipeDecision),
+            makeModalButton("Cancel", "modal-secondary-btn", closeWipeModal)
+          ]
+        });
+      }
+
+      async function confirmWipeDecision() {
+        setWipeBusy(true);
+        try {
+          await postJson("/api/wipe/confirm", {
+            sessionId: wipeState.sessionId,
+            confirm: true
+          });
+          renderClickStep();
+        } catch (error) {
+          setWipeError(error.message);
+        } finally {
+          setWipeBusy(false);
+        }
+      }
+
+      function renderClickStep() {
+        wipeState.clickCount = 0;
+        wipeState.clickLocked = false;
+        renderWipeModal({
+          kicker: "Click check",
+          title: "Click 5 times",
+          text: "Click inside the box five times to continue.",
+          body: `
+            <div id="wipeClickBox" class="click-box" role="button" tabindex="0">
+              <span><strong id="wipeClickCount">0 / 5</strong>clicks counted</span>
+            </div>
+          `,
+          actions: [
+            makeModalButton("Cancel", "modal-secondary-btn", closeWipeModal)
+          ]
+        });
+
+        const box = document.getElementById("wipeClickBox");
+        if (!box) return;
+
+        const handleClick = () => {
+          if (wipeState.clickLocked) return;
+          wipeState.clickCount = Math.min(5, wipeState.clickCount + 1);
+          const count = document.getElementById("wipeClickCount");
+          if (count) count.textContent = `${wipeState.clickCount} / 5`;
+          if (wipeState.clickCount >= 5) {
+            wipeState.clickLocked = true;
+            completeClickGate();
+          }
+        };
+
+        box.addEventListener("click", handleClick);
+        box.addEventListener("keydown", event => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            handleClick();
+          }
+        });
+      }
+
+      async function completeClickGate() {
+        const box = document.getElementById("wipeClickBox");
+        if (box) box.style.pointerEvents = "none";
+
+        try {
+          const result = await postJson("/api/wipe/clicks", {
+            sessionId: wipeState.sessionId,
+            clickCount: wipeState.clickCount
+          });
+          wipeState.problems = result.problems || [];
+          renderMathStep();
+        } catch (error) {
+          setWipeError(error.message);
+          wipeState.clickLocked = false;
+          if (box) box.style.pointerEvents = "";
+        }
+      }
+
+      function renderMathStep() {
+        const problemMarkup = wipeState.problems
+          .map((problem, index) => `
+            <div class="math-row">
+              <label for="wipeMath${index}">${escapeHtml(problem.prompt)} =</label>
+              <input id="wipeMath${index}" data-problem-id="${escapeHtml(problem.id)}" inputmode="numeric" autocomplete="off" />
+            </div>
+          `)
+          .join("");
+
+        renderWipeModal({
+          kicker: "Math check",
+          title: "Solve 3 problems",
+          text: "Answer all three problems to wipe the data.",
+          body: `<div class="math-stack">${problemMarkup}</div>`,
+          actions: [
+            makeModalButton("Wipe data", "danger-btn", executeWipe),
+            makeModalButton("Cancel", "modal-secondary-btn", closeWipeModal)
+          ]
+        });
+      }
+
+      async function executeWipe() {
+        const answers = Array.from(document.querySelectorAll("[data-problem-id]"))
+          .map(input => {
+            const value = input.value.trim();
+            return {
+              id: input.dataset.problemId,
+              answer: Number(value),
+              isBlank: value === ""
+            };
+          });
+
+        if (answers.some(item => item.isBlank || !Number.isFinite(item.answer))) {
+          setWipeError("Answer all three math problems.");
+          return;
+        }
+
+        setWipeBusy(true);
+        try {
+          const result = await postJson("/api/wipe/execute", {
+            sessionId: wipeState.sessionId,
+            answers
+          });
+
+          if (result.ok) {
+            renderWipeModal({
+              kicker: "Data wiped",
+              title: "Analytics cleared",
+              text: "The live aggregate and backup file were reset.",
+              body: '<div class="empty-state">The dashboard will refresh with empty data.</div>',
+              actions: [
+                makeModalButton("Close", "primary-btn", closeWipeModal)
+              ]
+            });
+            loadAnalytics();
+          }
+        } catch (error) {
+          setWipeError(error.message);
+        } finally {
+          setWipeBusy(false);
+        }
+      }
+
       function debounce(fn, delay = 140) {
         let timer;
 
@@ -1833,6 +2508,20 @@
       function setupRefresh() {
         const refreshButton = document.getElementById("refreshButton");
         if (refreshButton) refreshButton.addEventListener("click", loadAnalytics);
+      }
+
+      function setupWipeFlow() {
+        const wipeButton = document.getElementById("wipeDataButton");
+        const closeButton = document.getElementById("wipeCloseButton");
+        const modal = document.getElementById("wipeModal");
+
+        if (wipeButton) wipeButton.addEventListener("click", startWipeFlow);
+        if (closeButton) closeButton.addEventListener("click", closeWipeModal);
+        if (modal) {
+          modal.addEventListener("click", event => {
+            if (event.target === modal) closeWipeModal();
+          });
+        }
       }
 
       function setCategoryMenuOpen(isOpen) {
@@ -1900,6 +2589,7 @@
       function boot() {
         setupPanelGlow();
         setupRefresh();
+        setupWipeFlow();
         setupCategoryMenu();
         setupResize();
         loadAnalytics();
