@@ -2294,7 +2294,7 @@
             kicker: "Email failed",
             title: "Code not sent",
             text: error.message,
-            body: '<div class="empty-state">Configure the server email settings, then try again.</div>',
+            body: '<div class="empty-state">Set ROOMS_RESET_RESEND_API_KEY on Render, or configure SMTP env vars, then try again.</div>',
             actions: [
               makeModalButton("Try again", "primary-btn", startWipeFlow),
               makeModalButton("Cancel", "modal-secondary-btn", closeWipeModal)

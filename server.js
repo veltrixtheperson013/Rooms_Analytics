@@ -17,13 +17,22 @@ const DATA_DIR = path.resolve(
 );
 const DATA_FILE = path.join(DATA_DIR, "analytics.json");
 const DATA_BACKUP_FILE = path.join(DATA_DIR, "analytics.backup.json");
+const REMOTE_BACKUP_FILE = process.env.ROOMS_ANALYTICS_GIST_FILE || "rooms-analytics.json";
+const REMOTE_BACKUP_GIST_ID = process.env.ROOMS_ANALYTICS_GIST_ID || "";
+const REMOTE_BACKUP_TOKEN = process.env.ROOMS_ANALYTICS_GITHUB_TOKEN || process.env.GITHUB_TOKEN || "";
 const WIPE_CODE_RECIPIENT = "veltrixtheperson013@proton.me";
+const RESET_EMAIL_FROM = process.env.ROOMS_RESET_EMAIL_FROM || "Rooms Analytics <onboarding@resend.dev>";
+const RESET_RESEND_API_KEY = process.env.ROOMS_RESET_RESEND_API_KEY || process.env.RESEND_API_KEY || "";
 const WIPE_CODE_TTL_MS = 10 * 60 * 1000;
 const WIPE_CODE_COOLDOWN_MS = 30 * 1000;
 const WIPE_MAX_CODE_ATTEMPTS = 6;
 const SMTP_TIMEOUT_MS = 15 * 1000;
+const REMOTE_BACKUP_TIMEOUT_MS = 10 * 1000;
 const wipeSessions = new Map();
 let lastWipeCodeSentAt = 0;
+let remoteBackupTimer = null;
+let remoteBackupInFlight = false;
+let pendingRemoteBackup = null;
 
 const EMPTY_DATA = {
   Version: 1,
@@ -120,11 +129,26 @@ function withDefaults(data) {
   return out;
 }
 
+function dataHasTelemetry(data) {
+  const analytics = withDefaults(data);
+  return Boolean(
+    asNumber(analytics.TotalSessions) > 0 ||
+    asNumber(analytics.TotalDeaths) > 0 ||
+    asNumber(analytics.TotalPlaytimeSeconds) > 0 ||
+    Object.values(analytics.JoinHoursUtc).some((value) => asNumber(value) > 0) ||
+    Object.values(analytics.LeaveHoursUtc).some((value) => asNumber(value) > 0)
+  );
+}
+
+function readAnalyticsFile(file) {
+  return withDefaults(JSON.parse(fs.readFileSync(file, "utf8")));
+}
+
 function readAnalytics() {
   ensureDataFile();
   for (const file of [DATA_FILE, DATA_BACKUP_FILE]) {
     try {
-      return withDefaults(JSON.parse(fs.readFileSync(file, "utf8")));
+      return readAnalyticsFile(file);
     } catch {
       // Try the next save file.
     }
@@ -132,7 +156,7 @@ function readAnalytics() {
   return withDefaults();
 }
 
-function writeAnalytics(data) {
+function writeAnalyticsLocal(data) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   const body = JSON.stringify(withDefaults(data), null, 2);
   const tempFile = path.join(DATA_DIR, `analytics.${process.pid}.tmp`);
@@ -141,9 +165,127 @@ function writeAnalytics(data) {
   fs.writeFileSync(DATA_BACKUP_FILE, body);
 }
 
+function writeAnalytics(data) {
+  const analytics = withDefaults(data);
+  writeAnalyticsLocal(analytics);
+  queueRemoteBackup(analytics);
+}
+
 function logDebug(...args) {
   if (DEBUG) {
     console.log("[analytics-debug]", ...args);
+  }
+}
+
+function hasRemoteBackupConfig() {
+  return Boolean(REMOTE_BACKUP_GIST_ID && REMOTE_BACKUP_TOKEN);
+}
+
+async function fetchJson(url, options = {}, timeoutMs = REMOTE_BACKUP_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    const text = await response.text();
+    const payload = text ? JSON.parse(text) : {};
+    if (!response.ok) {
+      throw new Error(payload.message || `HTTP ${response.status}`);
+    }
+    return payload;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function githubHeaders(extra = {}) {
+  return {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${REMOTE_BACKUP_TOKEN}`,
+    "Content-Type": "application/json",
+    "User-Agent": "rooms-analytics-dashboard",
+    "X-GitHub-Api-Version": "2022-11-28",
+    ...extra
+  };
+}
+
+async function readRemoteBackup() {
+  if (!hasRemoteBackupConfig()) return null;
+  const gist = await fetchJson(`https://api.github.com/gists/${REMOTE_BACKUP_GIST_ID}`, {
+    headers: githubHeaders()
+  });
+  const file = gist.files && gist.files[REMOTE_BACKUP_FILE];
+  if (!file || !file.content) return null;
+  return withDefaults(JSON.parse(file.content));
+}
+
+async function writeRemoteBackup(data) {
+  if (!hasRemoteBackupConfig()) return false;
+  await fetchJson(`https://api.github.com/gists/${REMOTE_BACKUP_GIST_ID}`, {
+    method: "PATCH",
+    headers: githubHeaders(),
+    body: JSON.stringify({
+      files: {
+        [REMOTE_BACKUP_FILE]: {
+          content: JSON.stringify(withDefaults(data), null, 2)
+        }
+      }
+    })
+  });
+  return true;
+}
+
+function queueRemoteBackup(data) {
+  if (!hasRemoteBackupConfig()) return;
+  pendingRemoteBackup = withDefaults(data);
+  clearTimeout(remoteBackupTimer);
+  remoteBackupTimer = setTimeout(flushRemoteBackup, 900);
+}
+
+async function flushRemoteBackup() {
+  if (remoteBackupInFlight || !pendingRemoteBackup) return;
+  remoteBackupInFlight = true;
+  const snapshot = pendingRemoteBackup;
+  pendingRemoteBackup = null;
+
+  try {
+    await writeRemoteBackup(snapshot);
+    logDebug("remote backup synced", REMOTE_BACKUP_FILE);
+  } catch (error) {
+    pendingRemoteBackup = snapshot;
+    console.warn("[analytics] remote backup sync failed:", error.message);
+  } finally {
+    remoteBackupInFlight = false;
+  }
+}
+
+async function hydrateAnalyticsFromRemote() {
+  ensureDataFile();
+  if (!hasRemoteBackupConfig()) return;
+
+  let local = null;
+  try {
+    local = readAnalyticsFile(DATA_FILE);
+  } catch {
+    local = null;
+  }
+
+  try {
+    const remote = await readRemoteBackup();
+    if (remote && dataHasTelemetry(remote) && !dataHasTelemetry(local)) {
+      writeAnalyticsLocal(remote);
+      console.log(`[analytics] restored analytics from GitHub Gist file ${REMOTE_BACKUP_FILE}`);
+      return;
+    }
+
+    if (local && dataHasTelemetry(local) && (!remote || !dataHasTelemetry(remote))) {
+      await writeRemoteBackup(local);
+      console.log(`[analytics] seeded GitHub Gist backup file ${REMOTE_BACKUP_FILE}`);
+    }
+  } catch (error) {
+    console.warn("[analytics] remote backup restore skipped:", error.message);
   }
 }
 
@@ -396,7 +538,7 @@ function getSmtpConfig() {
   const host = process.env.ROOMS_RESET_SMTP_HOST;
   const user = process.env.ROOMS_RESET_SMTP_USER;
   const pass = process.env.ROOMS_RESET_SMTP_PASS;
-  const from = process.env.ROOMS_RESET_EMAIL_FROM || user;
+  const from = process.env.ROOMS_RESET_EMAIL_FROM || user || RESET_EMAIL_FROM;
   if (!host || !from) return null;
 
   const port = Number(process.env.ROOMS_RESET_SMTP_PORT || 587);
@@ -412,6 +554,10 @@ function getSmtpConfig() {
     helo: process.env.ROOMS_RESET_SMTP_HELO || "rooms-analytics.local",
     allowInvalidCert: envFlag("ROOMS_RESET_SMTP_ALLOW_INVALID_CERT")
   };
+}
+
+function hasResendConfig() {
+  return Boolean(RESET_RESEND_API_KEY);
 }
 
 function connectSmtpSocket(config) {
@@ -557,7 +703,7 @@ function createSmtpReader(socket) {
 async function sendSmtpMail({ to, subject, text }) {
   const config = getSmtpConfig();
   if (!config) {
-    throw new Error("Email delivery is not configured. Set ROOMS_RESET_SMTP_HOST and ROOMS_RESET_EMAIL_FROM.");
+    throw new Error("SMTP email delivery is not configured.");
   }
 
   let socket = await connectSmtpSocket(config);
@@ -609,6 +755,51 @@ async function sendSmtpMail({ to, subject, text }) {
   }
 }
 
+async function sendResendMail({ to, subject, text }) {
+  if (!hasResendConfig()) {
+    throw new Error("Resend email delivery is not configured.");
+  }
+
+  await fetchJson("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESET_RESEND_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      from: RESET_EMAIL_FROM,
+      to,
+      subject,
+      text
+    })
+  }, SMTP_TIMEOUT_MS);
+}
+
+async function sendMail(message) {
+  const errors = [];
+
+  if (hasResendConfig()) {
+    try {
+      await sendResendMail(message);
+      return "resend";
+    } catch (error) {
+      errors.push(`Resend: ${error.message}`);
+    }
+  }
+
+  if (getSmtpConfig()) {
+    try {
+      await sendSmtpMail(message);
+      return "smtp";
+    } catch (error) {
+      errors.push(`SMTP: ${error.message}`);
+    }
+  }
+
+  const detail = errors.length ? errors.join("; ") : "Set ROOMS_RESET_RESEND_API_KEY or SMTP env vars.";
+  throw new Error(`Email delivery failed. ${detail}`);
+}
+
 async function sendWipeCodeEmail(code, req) {
   const expiresMinutes = Math.round(WIPE_CODE_TTL_MS / 60000);
   const subject = "Rooms Analytics wipe code";
@@ -622,7 +813,7 @@ async function sendWipeCodeEmail(code, req) {
     "If you did not request a data wipe, ignore this email."
   ].join("\n");
 
-  await sendSmtpMail({ to: WIPE_CODE_RECIPIENT, subject, text });
+  return sendMail({ to: WIPE_CODE_RECIPIENT, subject, text });
 }
 
 function generateMathProblems() {
@@ -724,12 +915,13 @@ const server = http.createServer(async (req, res) => {
     });
 
     try {
-      await sendWipeCodeEmail(code, req);
+      const provider = await sendWipeCodeEmail(code, req);
       lastWipeCodeSentAt = now;
       sendJson(res, 200, {
         ok: true,
         sessionId,
         email: WIPE_CODE_RECIPIENT,
+        provider,
         expiresInSeconds: Math.round(WIPE_CODE_TTL_MS / 1000)
       });
     } catch (error) {
@@ -856,10 +1048,20 @@ const server = http.createServer(async (req, res) => {
   res.end("Method not allowed");
 });
 
-ensureDataFile();
-server.listen(PORT, () => {
-  console.log(`[analytics] dashboard listening on port ${PORT}`);
-  console.log(`[analytics] data file: ${DATA_FILE}`);
-  console.log(`[analytics] health endpoint: /health`);
-  console.log(`[analytics] ingest endpoint: /api/ingest`);
+async function startServer() {
+  await hydrateAnalyticsFromRemote();
+  server.listen(PORT, () => {
+    console.log(`[analytics] dashboard listening on port ${PORT}`);
+    console.log(`[analytics] data file: ${DATA_FILE}`);
+    if (hasRemoteBackupConfig()) {
+      console.log(`[analytics] remote backup: GitHub Gist ${REMOTE_BACKUP_GIST_ID}/${REMOTE_BACKUP_FILE}`);
+    }
+    console.log(`[analytics] health endpoint: /health`);
+    console.log(`[analytics] ingest endpoint: /api/ingest`);
+  });
+}
+
+startServer().catch((error) => {
+  console.error("[analytics] failed to start:", error);
+  process.exitCode = 1;
 });
