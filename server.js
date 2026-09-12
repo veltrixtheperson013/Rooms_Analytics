@@ -5,16 +5,16 @@ const crypto = require("node:crypto");
 const net = require("node:net");
 const tls = require("node:tls");
 
-const PORT = Number(process.env.PORT || 8787);
-const INGEST_TOKEN = process.env.ROOMS_ANALYTICS_TOKEN || "change-me-local-token";
+const hosting = require('./hosting');
+hosting.loadEnvironment(__dirname);
+const hostConfig = hosting.configuration(process.env, __dirname);
+const PORT = hostConfig.port;
+const INGEST_TOKEN = process.env.ROOMS_ANALYTICS_TOKEN || "";
+const access = require('./access')();
 const DEBUG = process.env.ROOMS_ANALYTICS_DEBUG === "1";
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
-const DATA_DIR = path.resolve(
-  process.env.ROOMS_ANALYTICS_DATA_DIR ||
-  process.env.RENDER_DISK_PATH ||
-  path.join(ROOT, "data")
-);
+const DATA_DIR = hostConfig.dataDir;
 const DATA_FILE = path.join(DATA_DIR, "analytics.json");
 const DATA_BACKUP_FILE = path.join(DATA_DIR, "analytics.backup.json");
 const REMOTE_BACKUP_FILE = process.env.ROOMS_ANALYTICS_GIST_FILE || "rooms-analytics.json";
@@ -33,6 +33,7 @@ let lastWipeCodeSentAt = 0;
 let remoteBackupTimer = null;
 let remoteBackupInFlight = false;
 let pendingRemoteBackup = null;
+let shuttingDown = false;
 
 const EMPTY_DATA = {
   Version: 1,
@@ -254,10 +255,11 @@ async function flushRemoteBackup() {
     await writeRemoteBackup(snapshot);
     logDebug("remote backup synced", REMOTE_BACKUP_FILE);
   } catch (error) {
-    pendingRemoteBackup = snapshot;
+    pendingRemoteBackup ||= snapshot;
     console.warn("[analytics] remote backup sync failed:", error.message);
   } finally {
     remoteBackupInFlight = false;
+    if (pendingRemoteBackup && !shuttingDown) remoteBackupTimer = setTimeout(flushRemoteBackup, 5000);
   }
 }
 
@@ -290,7 +292,8 @@ async function hydrateAnalyticsFromRemote() {
 }
 
 function safeKey(value) {
-  return String(value || "Unknown").replace(/[^\w.-]/g, "_").slice(0, 64) || "Unknown";
+  const key = String(value || "Unknown").replace(/[^\w.-]/g, "_").slice(0, 64) || "Unknown";
+  return ["__proto__", "prototype", "constructor"].includes(key) ? "Unknown" : key;
 }
 
 function addCount(map, key, amount = 1) {
@@ -301,7 +304,8 @@ function addCount(map, key, amount = 1) {
 
 function addRawCount(map, key, amount = 1) {
   if (!map || typeof map !== "object") return;
-  const cleanKey = String(key || "Unknown").slice(0, 80) || "Unknown";
+  const raw = String(key || "Unknown").slice(0, 80) || "Unknown";
+  const cleanKey = ["__proto__", "prototype", "constructor"].includes(raw) ? "Unknown" : raw;
   map[cleanKey] = Number(map[cleanKey] || 0) + Number(amount || 0);
 }
 
@@ -328,6 +332,18 @@ function normalizeCategoryMap(source) {
     out[safeKey(name)] = normalizeAggregate(value);
   }
   return out;
+}
+
+function validateTelemetry(value, depth = 0) {
+  if (depth > 4) throw new Error('Telemetry nesting is too deep');
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid telemetry map');
+  if (Object.keys(value).length > 20000) throw new Error('Telemetry map is too large');
+  for (const [key, item] of Object.entries(value)) {
+    if (['__proto__', 'prototype', 'constructor'].includes(key)) throw new Error('Invalid telemetry key');
+    if (typeof item === 'number' && (!Number.isFinite(item) || item < 0 || item > Number.MAX_SAFE_INTEGER)) throw new Error('Invalid telemetry count');
+    if (item && typeof item === 'object') validateTelemetry(item, depth + 1);
+    if (typeof item === 'string' && (item.length > 128 || !['LastUpdatedUtc', 'leaveUtc', 'joinUtc', 'joinHourUtc', 'leaveHourUtc', 'dayUtc', 'environment', 'accountAgeGroup'].includes(key))) throw new Error('Invalid telemetry value');
+  }
 }
 
 function normalizeAggregate(input) {
@@ -435,9 +451,9 @@ function sendJson(res, status, payload) {
 
 function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
+  const pathname = url.pathname === "/" ? "/index.html" : url.pathname === "/login" ? "/login.html" : url.pathname;
   const resolved = path.normalize(path.join(PUBLIC_DIR, pathname));
-  if (!resolved.startsWith(PUBLIC_DIR)) {
+  if (!resolved.startsWith(PUBLIC_DIR + path.sep)) {
     res.writeHead(403);
     res.end("Forbidden");
     return;
@@ -477,7 +493,7 @@ function readBody(req) {
 function tokenMatches(token) {
   const expected = Buffer.from(INGEST_TOKEN);
   const actual = Buffer.from(token || "");
-  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+  return expected.length > 0 && expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
 }
 
 function readJsonBody(req) {
@@ -842,6 +858,7 @@ function validateMathAnswers(problems, answers) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
+  if (!await access(req, res, url, readJsonBody, sendJson)) return;
 
   if (req.method === "GET" && url.pathname === "/health") {
     sendJson(res, 200, {
@@ -867,18 +884,27 @@ const server = http.createServer(async (req, res) => {
     }
     try {
       const payload = JSON.parse(await readBody(req));
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('Expected a telemetry object');
+      validateTelemetry(payload);
       if (payload.TotalSessions !== undefined || payload.JoinHoursUtc !== undefined) {
         const liveAggregate = normalizeAggregate(payload);
+        const current = readAnalytics();
+        const revision = Number(payload.Revision || payload.TotalSessions || 0);
+        const currentRevision = Number(current.Revision || current.TotalSessions || 0);
+        if (revision <= currentRevision && dataHasTelemetry(current)) {
+          sendJson(res, 200, {ok: true, mode: 'stale', revision: currentRevision});
+          return;
+        }
+        liveAggregate.Revision = revision;
         writeAnalytics(liveAggregate);
         console.log(`[analytics] replaced aggregate: sessions=${liveAggregate.TotalSessions} deaths=${liveAggregate.TotalDeaths}`);
         sendJson(res, 200, { ok: true, mode: "replace", totalSessions: liveAggregate.TotalSessions });
         return;
       }
 
-      const merged = mergeAnalytics(readAnalytics(), payload);
-      writeAnalytics(merged);
-      console.log(`[analytics] merged session: sessions=${merged.TotalSessions} deaths=${merged.TotalDeaths}`);
-      sendJson(res, 200, { ok: true, mode: "merge", totalSessions: merged.TotalSessions });
+      // Session deltas cannot safely mix with authoritative DataStore snapshots.
+      sendJson(res, 422, {ok: false, error: 'Upload an authoritative aggregate snapshot.'});
+      return;
     } catch (error) {
       console.warn("[analytics] ingest failed:", error.message);
       sendJson(res, 400, { ok: false, error: error.message });
@@ -1034,8 +1060,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "POST" && url.pathname === "/api/demo-sample") {
-    writeAnalytics(DEMO_DATA);
-    sendJson(res, 200, { ok: true });
+    sendJson(res, 403, { ok: false, error: "Demo data cannot replace live telemetry." });
     return;
   }
 
@@ -1050,8 +1075,8 @@ const server = http.createServer(async (req, res) => {
 
 async function startServer() {
   await hydrateAnalyticsFromRemote();
-  server.listen(PORT, () => {
-    console.log(`[analytics] dashboard listening on port ${PORT}`);
+  server.listen(PORT, hostConfig.host, () => {
+    console.log(`[analytics] dashboard listening on ${hostConfig.host}:${PORT}`);
     console.log(`[analytics] data file: ${DATA_FILE}`);
     if (hasRemoteBackupConfig()) {
       console.log(`[analytics] remote backup: GitHub Gist ${REMOTE_BACKUP_GIST_ID}/${REMOTE_BACKUP_FILE}`);
@@ -1060,6 +1085,27 @@ async function startServer() {
     console.log(`[analytics] ingest endpoint: /api/ingest`);
   });
 }
+
+async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  const deadline = setTimeout(() => process.exit(1), 15000);
+  deadline.unref();
+  await new Promise(resolve => server.close(resolve));
+  clearTimeout(remoteBackupTimer);
+  while (remoteBackupInFlight) await new Promise(resolve => setTimeout(resolve, 50));
+  await flushRemoteBackup();
+  clearTimeout(remoteBackupTimer);
+  clearTimeout(deadline);
+  // Local analytics writes are synchronous and have completed before this point.
+  process.exit(0);
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+server.on('error', error => {
+  console.error('[analytics] listener failed:', error.message);
+  process.exitCode = 1;
+});
 
 startServer().catch((error) => {
   console.error("[analytics] failed to start:", error);

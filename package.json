@@ -5,9 +5,10 @@
   "description": "Anonymous analytics dashboard backend for Rooms.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test"
   },
   "engines": {
-    "node": "22.x"
+    "node": "^22.21.0 || >=24.10.0"
   }
 }

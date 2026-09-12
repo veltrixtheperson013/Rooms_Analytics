@@ -1096,6 +1096,7 @@
       </div>
 
       <div class="topbar-right animate-up delay-1">
+        <button type="button" id="logoutButton">Sign out</button>
         <div class="status-chip">
           <span id="statusDot" class="status-dot"></span>
           <span id="statusText">Loading</span>
@@ -1273,45 +1274,15 @@
 
     <script>
       const API_URL = "/api/analytics";
+      document.getElementById('logoutButton').addEventListener('click', async () => {
+        const response = await fetch('/api/logout', {method: 'POST'});
+        if (response.ok) location.replace('/login');
+      });
       const WIPE_EMAIL = "veltrixtheperson013@proton.me";
 
       const fallbackData = {
-        totalSessions: 142,
-        avgPlaytimeSeconds: 734,
-        avgRooms: 36.8,
-        totalDeaths: 69,
-        joinLeaveHours: [
-          { hour: "6 PM", joins: 6, leaves: 3 },
-          { hour: "7 PM", joins: 8, leaves: 7 },
-          { hour: "8 PM", joins: 11, leaves: 10 },
-          { hour: "9 PM", joins: 9, leaves: 12 },
-          { hour: "10 PM", joins: 8, leaves: 10 },
-          { hour: "11 PM", joins: 1, leaves: 1 }
-        ],
-        deathCauses: [
-          { label: "A-60", value: 22 },
-          { label: "B-30", value: 18 },
-          { label: "Unknown", value: 15 },
-          { label: "A-200", value: 14 }
-        ],
-        sectionsCrossed: [
-          { label: "A", value: 43 },
-          { label: "B", value: 30 }
-        ],
-        miniSections: [
-          { label: "A-000 to A-050", value: 43 },
-          { label: "A-050 to A-100", value: 39 },
-          { label: "B-000 to B-050", value: 30 },
-          { label: "A-100 to A-150", value: 24 },
-          { label: "A-150 to A-200", value: 14 }
-        ],
-        ageGroups: [
-          { label: "13+", value: 46 },
-          { label: "Unverified", value: 34 },
-          { label: "9+", value: 28 },
-          { label: "16+", value: 22 },
-          { label: "21+", value: 12 }
-        ]
+        totalSessions: 0, avgPlaytimeSeconds: 0, avgRooms: 0, totalDeaths: 0,
+        joinLeaveHours: [], deathCauses: [], sectionsCrossed: [], miniSections: [], ageGroups: []
       };
 
       let analyticsData = fallbackData;
@@ -2162,17 +2133,20 @@
             cache: "no-store"
           });
 
+          if (response.status === 401) { location.replace('/login'); return; }
+
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
           }
 
           const data = await response.json();
           renderDashboard(data);
-          setStatus("ok", "Live");
+          const updated = Date.parse(data.LastUpdatedUtc);
+          setStatus(Number.isFinite(updated) && Date.now() - updated < 900000 ? "ok" : "error",
+            Number.isFinite(updated) ? `Last upload ${new Date(updated).toLocaleString()}` : "Waiting for telemetry");
         } catch (error) {
-          renderDashboard(fallbackData);
-          setStatus("error", "Demo data");
-          console.warn("Using fallback analytics data:", error);
+          setStatus("error", "Upload data unavailable · retry refresh");
+          console.warn("Analytics fetch failed:", error);
         } finally {
           setRefreshLoading(false);
         }
